@@ -1,6 +1,7 @@
-import Image from 'next/image';
+// frontend-cursos/src/components/ContentCard.tsx
+// NO NECESITAMOS importar Image de 'next/image' si usamos <img> nativo
 import Link from 'next/link';
-import React from 'react'; // Asegúrate de importar React
+import React from 'react';
 
 interface ContentCardProps {
   title: string;
@@ -8,19 +9,18 @@ interface ContentCardProps {
   imageUrl: string;
   link: string;
   tags?: string[];
+  children?: React.ReactNode;
 }
 
-const ContentCard: React.FC<ContentCardProps> = ({ title, description, imageUrl, link, tags }) => {
+const ContentCard: React.FC<ContentCardProps> = ({ title, description, imageUrl, link, tags, children }) => {
   return (
-    <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden transform transition-transform hover:scale-105">
-      {/* El div padre debe tener posición relativa y un tamaño definido */}
+    <div className="bg-gray-800 rounded-lg shadow-xl overflow-hidden transform transition-transform hover:scale-105 hover:shadow-2xl">
+      {/* Reemplazamos el componente Image de Next.js por una etiqueta <img> nativa */}
       <div className="relative h-48 w-full">
-        <Image
+        <img
           src={imageUrl}
           alt={title}
-          fill // <-- Esta prop hace que la imagen llene el contenedor padre
-          className="object-cover rounded-t-lg" // <-- 'object-cover' ahora va en className
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // <-- Añadido para mejor rendimiento y eliminar warnings
+          className="object-cover rounded-t-lg w-full h-full" // Asegúrate de que ocupe todo el espacio
         />
       </div>
       <div className="p-5">
@@ -36,6 +36,7 @@ const ContentCard: React.FC<ContentCardProps> = ({ title, description, imageUrl,
         <Link href={link} className="block w-full text-center bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md transition-colors">
           Ver Curso
         </Link>
+        {children}
       </div>
     </div>
   );
