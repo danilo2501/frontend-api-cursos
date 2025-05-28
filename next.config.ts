@@ -1,11 +1,18 @@
-// frontend-cursos/next.config.ts
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+// next.config.js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   images: {
-    // Asegúrate de que este array contenga el dominio de tus imágenes externas
-    domains: ['via.placeholder.com'], // ¡Esta línea es CRÍTICA!
+    domains: [
+      'via.placeholder.com',
+      'educapption.com',
+      'media.istockphoto.com',
+      'd1ub0o53i85pdh.cloudfront.net',
+      'fitls.com',
+      'qualitygb.com', // <--- ¡Añade este nuevo dominio aquí!
+      // ¡Asegúrate de añadir cualquier otro dominio que uses en el futuro!
+    ],
   },
+  // Otros ajustes de tu next.config.js si los tienes
 };
 
-export default nextConfig;
+module.exports = nextConfig;

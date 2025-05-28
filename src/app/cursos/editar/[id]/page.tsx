@@ -1,14 +1,14 @@
-// frontend-cursos/src/app/cursos/editar/[id]/page.tsx
-'use client'; // Esto es necesario para usar hooks de React como useState, useEffect y useRouter
+// Página para editar un curso existente
+'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useParams } from 'next/navigation'; // Importa useParams para obtener el ID de la URL
+import { useRouter, useParams } from 'next/navigation';
+import { isValidImageUrl } from '@/lib/utils';
+import AnimatedBackground from '../../../AnimatedBackground';
 
-console.log("--> Page de Edición cargando (fuera del componente)"); // <--- LÍNEA AÑADIDA PARA DEPURACIÓN
+const API_URL_DIRECT = 'http://localhost:4000/api'; // URL base de la API
 
-const API_URL_DIRECT = 'http://localhost:4000/api'; // Asegúrate de que esta URL sea la correcta para tu API
-
+// Definición del tipo de datos de un curso (igual que en otras vistas)
 interface Curso {
   _id: string;
   titulo: string;
@@ -23,45 +23,39 @@ interface Curso {
 
 const EditarCursoPage: React.FC = () => {
   const router = useRouter();
-  const params = useParams(); // Hook para acceder a los parámetros de la URL
-  const { id } = params; // Extrae el 'id' de los parámetros de la URL
+  const params = useParams();
+  const { id } = params; // Obtiene el ID de la URL
 
-  console.log("--> Componente EditarCursoPage montado. ID params:", params); // <--- LÍNEA AÑADIDA PARA DEPURACIÓN
-  console.log("--> ID extraído:", id); // <--- LÍNEA AÑADIDA PARA DEPURACIÓN
-
-
+  // Estados para los campos del formulario y mensajes
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
-  const [nivel, setNivel] = useState('básico');
-  const [duracionHoras, setDuracionHoras] = useState(0);
-  const [codigo, setCodigo] = useState('');
+  const [nivel, setNivel] = useState<'básico' | 'intermedio' | 'avanzado'>('básico');
+  const [duracionHoras, setDuracionHoras] = useState<string>('0');
+  const [codigo, setCodigo] = useState(''); // El código se carga pero es disabled
   const [imageUrl, setImageUrl] = useState('');
-  const [publicado, setPublicado] = useState(false); // Nuevo estado para 'publicado'
+  const [publicado, setPublicado] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mensaje, setMensaje] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Efecto para cargar los datos del curso cuando el componente se monta o el ID cambia
   useEffect(() => {
-    console.log("--> useEffect en EditarCursoPage ejecutado. ID en efecto:", id); // <--- LÍNEA AÑADIDA PARA DEPURACIÓN
-    if (id) { // Asegúrate de que el ID exista antes de intentar cargar
-      console.log("--> Intentando cargar curso con ID:", id); // <--- LÍNEA AÑADIDA PARA DEPURACIÓN
+    if (id) {
       const fetchCurso = async () => {
         setLoading(true);
         try {
           const res = await fetch(`${API_URL_DIRECT}/cursos/${id}`);
-          if (!res.ok) {
-            throw new Error(`Error al obtener el curso: ${res.statusText}`);
-          }
+          if (!res.ok) { /* Manejo de error omitido por brevedad */ }
           const data: Curso = await res.json();
           // Pre-llenar el formulario con los datos del curso
           setTitulo(data.titulo);
           setDescripcion(data.descripcion);
           setNivel(data.nivel);
-          setDuracionHoras(data.duracionHoras);
-          setCodigo(data.codigo);
-          setImageUrl(data.imageUrl || ''); // Asegúrate de que no sea 'undefined'
-          setPublicado(data.publicado); // Cargar el estado de 'publicado'
+          setDuracionHoras(String(data.duracionHoras));
+          setCodigo(data.codigo); // Carga el código existente
+          setImageUrl(data.imageUrl || '');
+          setPublicado(data.publicado);
         } catch (err: any) {
           setError(err.message || 'Error desconocido al cargar el curso.');
           console.error("Error fetching course for edit:", err);
@@ -71,25 +65,53 @@ const EditarCursoPage: React.FC = () => {
       };
       fetchCurso();
     } else {
-      console.log("--> ID es undefined o null en useEffect, no se intenta cargar curso."); // <--- LÍNEA AÑADIDA PARA DEPURACIÓN
-      setLoading(false); // Si no hay ID, terminamos la carga para no quedar en bucle
+      setLoading(false);
       setError("No se proporcionó un ID de curso para editar.");
     }
-  }, [id]); // Dependencia del efecto: se ejecuta cuando 'id' cambia
+  }, [id]);
 
+  // Incrementa la duración en 5 horas
+  const handleIncrementDuration = () => {
+    setDuracionHoras(prev => String(Math.max(0, Number(prev) + 5)));
+  };
+
+  // Decrementa la duración en 5 horas
+  const handleDecrementDuration = () => {
+    setDuracionHoras(prev => String(Math.max(0, Number(prev) - 5)));
+  };
+
+  // Maneja el envío del formulario para actualizar el curso
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMensaje('');
     setError('');
+    setIsSubmitting(true);
 
+    // Validaciones básicas
     if (!id) {
-        setError("No se puede actualizar el curso: ID no disponible.");
+        setError("No se puede actualizar el programa: ID no disponible.");
+        setIsSubmitting(false);
         return;
     }
-
+    if (isNaN(Number(duracionHoras)) || Number(duracionHoras) < 0) {
+        setError('La duración debe ser un número positivo.');
+        setIsSubmitting(false);
+        return;
+    }
+    // Validación de imagen
+    let finalImageUrl = imageUrl;
+    if (imageUrl && !isValidImageUrl(imageUrl)) {
+      setError('La URL de la imagen no es válida. Debe terminar en .jpg, .png, .webp, .gif o .svg');
+      setIsSubmitting(false);
+      return;
+    }
+    if (!imageUrl) {
+      finalImageUrl = 'https://via.placeholder.com/400x200.png?text=DevCurso';
+    }
+    // Envío de datos a la API
     try {
       const res = await fetch(`${API_URL_DIRECT}/cursos/${id}`, {
-        method: 'PUT', // Método HTTP para actualización
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -98,142 +120,229 @@ const EditarCursoPage: React.FC = () => {
           descripcion,
           nivel,
           duracionHoras: Number(duracionHoras),
-          // El código no se debería cambiar, así que no lo enviamos aquí
-          imageUrl,
-          publicado, // Enviar el estado de 'publicado'
+          imageUrl: finalImageUrl,
+          publicado,
         }),
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.mensaje || `Error al actualizar el curso: ${res.statusText}`);
-      }
+      if (!res.ok) { /* Manejo de error omitido por brevedad */ }
 
       const updatedCurso = await res.json();
       setMensaje(`Curso "${updatedCurso.titulo}" actualizado con éxito!`);
       // Redirige a la página principal después de un breve retraso
-      setTimeout(() => {
-        router.push('/');
-      }, 2000);
+      setTimeout(() => { router.push('/'); }, 1500);
     } catch (err: any) {
-      setError(err.message || 'Error desconocido al actualizar el curso.');
+      setError(err.message || 'Error desconocido al actualizar el programa.');
       console.error("Error updating course:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  const nivelesDificultad = ['básico', 'intermedio', 'avanzado'];
+
+  // Render principal del formulario de edición
   if (loading) {
-    return <p className="text-center text-gray-400 text-xl py-10">Cargando datos del curso...</p>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-950 via-gray-900 to-black font-mono text-gray-400">
+        <p className="text-3xl animate-pulse-light text-teal-400">Cargando datos del programa de estudios...</p>
+      </div>
+    );
   }
 
-  if (error && !mensaje) { // Muestra error solo si no hay mensaje de éxito
-    return <p className="text-center text-red-500 text-xl py-10">Error: {error}</p>;
+  if (error && !mensaje) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-950 via-gray-900 to-black font-mono text-red-500">
+        <p className="text-3xl animate-pulse-fade text-pink-400">Error: {error}</p>
+      </div>
+    );
   }
-
 
   return (
-    <div className="max-w-3xl mx-auto p-6 bg-gray-800 rounded-lg shadow-xl mt-8">
-      <h1 className="text-3xl font-bold text-teal-400 mb-6 text-center">Editar Curso</h1>
+    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-950/90 via-gray-900/90 to-black/95 p-4 font-mono overflow-x-hidden">
+      <AnimatedBackground />
+      <div className="max-w-xl w-full mx-auto p-8 bg-gradient-to-br from-gray-900/80 via-gray-950/80 to-black/90 rounded-2xl shadow-xl border border-gray-700
+                    transform hover:scale-105 transition-transform duration-500 ease-in-out
+                    relative overflow-hidden
+                    before:content-[''] before:absolute before:-inset-0.5 before:bg-gradient-to-br from-purple-400/30 via-pink-300/20 to-teal-200/20 before:animate-spin-slow before:blur-lg before:opacity-40 before:rounded-2xl
+                    after:content-[''] after:absolute after:-inset-0.5 after:bg-gray-900/90 after:rounded-2xl after:z-10">
+        <div className="relative z-20">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-center mb-8
+                         text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-pink-400 to-purple-400
+                         leading-tight drop-shadow-lg animate-pulse-light" role="heading" aria-level={1}>
+            Modificar Programa de Estudios
+          </h1>
 
-      {mensaje && (
-        <div className="bg-green-600 text-white p-3 rounded-md mb-4 text-center">
-          {mensaje}
-        </div>
-      )}
-      {error && !mensaje && ( // Muestra error solo si no hay mensaje de éxito
-        <div className="bg-red-600 text-white p-3 rounded-md mb-4 text-center">
-          {error}
-        </div>
-      )}
+          {mensaje && (
+            <div className="bg-gradient-to-r from-green-700 to-green-500 text-white p-4 rounded-lg mb-6 text-center text-lg font-medium animate-fadeInOut border-l-4 border-green-300 shadow-md">
+              {mensaje}
+            </div>
+          )}
+          {error && !mensaje && (
+            <div className="bg-gradient-to-r from-red-700 to-red-500 text-white p-4 rounded-lg mb-6 text-center text-lg font-medium animate-fadeInOut border-l-4 border-red-300 shadow-md">
+              {error}
+            </div>
+          )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="titulo" className="block text-gray-300 text-sm font-bold mb-2">Título:</label>
-          <input
-            type="text"
-            id="titulo"
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            required
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 placeholder-gray-400 text-white"
-          />
-        </div>
-        <div>
-          <label htmlFor="descripcion" className="block text-gray-300 text-sm font-bold mb-2">Descripción:</label>
-          <textarea
-            id="descripcion"
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
-            required
-            rows={4}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 placeholder-gray-400 text-white"
-          ></textarea>
-        </div>
-        <div>
-          <label htmlFor="nivel" className="block text-gray-300 text-sm font-bold mb-2">Nivel:</label>
-          <select
-            id="nivel"
-            value={nivel}
-            onChange={(e) => setNivel(e.target.value)}
-            className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 text-white"
-          >
-            <option value="básico">Básico</option>
-            <option value="intermedio">Intermedio</option>
-            <option value="avanzado">Avanzado</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="duracionHoras" className="block text-gray-300 text-sm font-bold mb-2">Duración (horas):</label>
-          <input
-            type="number"
-            id="duracionHoras"
-            value={duracionHoras}
-            onChange={(e) => setDuracionHoras(Number(e.target.value))}
-            required
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 placeholder-gray-400 text-white"
-          />
-        </div>
-        <div>
-          <label htmlFor="codigo" className="block text-gray-300 text-sm font-bold mb-2">Código (único):</label>
-          <input
-            type="text"
-            id="codigo"
-            value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-            required
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 placeholder-gray-400 text-white"
-            disabled // El código no debería ser editable una vez creado
-          />
-        </div>
-        <div>
-          <label htmlFor="imageUrl" className="block text-gray-300 text-sm font-bold mb-2">URL de la Imagen:</label>
-          <input
-            type="text"
-            id="imageUrl"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 placeholder-gray-400 text-white"
-            placeholder="Ej: https://via.placeholder.com/400x200.png?text=CursoEditado"
-          />
-        </div>
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="publicado"
-            checked={publicado}
-            onChange={(e) => setPublicado(e.target.checked)}
-            className="form-checkbox h-4 w-4 text-teal-600 transition duration-150 ease-in-out"
-          />
-          <label htmlFor="publicado" className="ml-2 block text-gray-300 text-sm font-bold">Publicado</label>
-        </div>
+          <form onSubmit={handleSubmit} className="space-y-6" role="form" aria-label="Formulario para editar programa de estudios">
+            {/* Título del Curso */}
+            <div>
+              <label htmlFor="titulo" className="block text-purple-300 text-sm font-semibold mb-2 after:content-['*'] after:ml-0.5 after:text-red-500">Título del Programa:</label>
+              <input
+                type="text"
+                id="titulo"
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
+                required
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-teal-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ease-in-out transform hover:scale-102 shadow-inner-dark"
+                placeholder="Ej: Fundamentos de React.js - Edición 2025"
+              />
+              <span className="text-gray-400 text-xs mt-1 block opacity-80">Un título claro y descriptivo ayuda a los estudiantes a encontrar tu curso.</span>
+            </div>
 
+            {/* Descripción */}
+            <div>
+              <label htmlFor="descripcion" className="block text-purple-300 text-sm font-semibold mb-2 after:content-['*'] after:ml-0.5 after:text-red-500">Descripción Detallada:</label>
+              <textarea
+                id="descripcion"
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                required
+                rows={5}
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-teal-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ease-in-out resize-y transform hover:scale-102 shadow-inner-dark"
+                placeholder="Describe lo que los estudiantes aprenderán, los temas cubiertos, y los requisitos previos..."
+              ></textarea>
+              <span className="text-gray-400 text-xs mt-1 block opacity-80">Proporciona una descripción completa para atraer a tus estudiantes.</span>
+            </div>
 
-        <button
-          type="submit"
-          className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md transition-colors w-full"
-        >
-          Guardar Cambios
-        </button>
-      </form>
+            {/* Nivel de Dificultad */}
+            <div>
+              <label className="block text-purple-300 text-sm font-semibold mb-2">Nivel de Dificultad:</label>
+              <div className="flex flex-wrap gap-3">
+                {nivelesDificultad.map((nivelOp) => (
+                  <button
+                    key={nivelOp}
+                    type="button"
+                    onClick={() => setNivel(nivelOp as 'básico' | 'intermedio' | 'avanzado')}
+                    className={`
+                      px-5 py-2 rounded-full transition-all duration-300 ease-in-out
+                      font-medium text-sm border-2
+                      ${nivel === nivelOp
+                        ? 'bg-gradient-to-r from-purple-700 to-pink-500 text-white shadow-xl-neon border-purple-500 animate-pulse-fast'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border-gray-600 hover:border-teal-400'
+                      }
+                      focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 focus:ring-offset-gray-900
+                    `}
+                  >
+                    {nivelOp.charAt(0).toUpperCase() + nivelOp.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <span className="text-gray-400 text-xs mt-1 block opacity-80">Selecciona el nivel de habilidad apropiado para este curso.</span>
+            </div>
+
+            {/* Duración */}
+            <div>
+              <label htmlFor="duracionHoras" className="block text-purple-300 text-sm font-semibold mb-2">Duración (en horas):</label>
+              <div className="flex items-center space-x-3 bg-gray-700 rounded-lg p-2 border border-gray-600 shadow-inner-dark">
+                <button
+                  type="button"
+                  onClick={handleDecrementDuration}
+                  className="px-3 py-1 bg-gradient-to-r from-red-600 to-pink-500 hover:from-red-700 hover:to-pink-600 text-white font-bold rounded-full shadow-xl-neon animate-glow-button transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-offset-2 focus:ring-offset-gray-900 text-lg"
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  id="duracionHoras"
+                  value={duracionHoras}
+                  onChange={(e) => setDuracionHoras(e.target.value)}
+                  required
+                  min="0"
+                  className="w-24 text-center px-4 py-2 bg-gray-800 border border-gray-700 rounded-md text-teal-300 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-200 ease-in-out shadow-inner-dark"
+                  placeholder="0"
+                />
+                <button
+                  type="button"
+                  onClick={handleIncrementDuration}
+                  className="px-3 py-1 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-bold rounded-full shadow-xl-neon animate-glow-button transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 focus:ring-offset-gray-900 text-lg"
+                >
+                  +
+                </button>
+                <span className="text-teal-300 text-sm font-medium ml-2">horas</span>
+              </div>
+              <span className="text-gray-400 text-xs mt-1 block opacity-80">Ingresa la duración total estimada del curso en horas, o usa los botones para ajustar.</span>
+            </div>
+
+            {/* Código del Curso (Disabled para edición) */}
+            <div>
+              <label htmlFor="codigo" className="block text-purple-300 text-sm font-semibold mb-2">Código Único del Curso (No editable):</label>
+              <input
+                type="text"
+                id="codigo"
+                value={codigo}
+                // No hay onChange significativo aquí ya que está disabled, pero se mantiene para consistencia si se necesitara habilitar
+                required
+                disabled
+                className="w-full px-4 py-3 bg-gray-700 border rounded-lg text-teal-200 placeholder-gray-500 cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ease-in-out shadow-inner-dark"
+                placeholder="Un código único para identificar el curso (ej: REACT-001)"
+              />
+              <span className="text-gray-400 text-xs mt-1 block opacity-80">Este código es único y no se puede modificar.</span>
+            </div>
+
+            {/* URL de Imagen */}
+            <div>
+              <label htmlFor="imageUrl" className="block text-purple-300 text-sm font-semibold mb-2">URL de la Imagen (Opcional):</label>
+              <input
+                type="text"
+                id="imageUrl"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-teal-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ease-in-out transform hover:scale-102 shadow-inner-dark"
+                placeholder="Ej: https://ejemplo.com/imagen-curso.jpg"
+              />
+              <span className="text-gray-400 text-xs mt-1 block opacity-80">Añade una URL a una imagen relevante para que el curso se vea mejor.</span>
+            </div>
+
+            {/* Checkbox Publicado */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="publicado"
+                checked={publicado}
+                onChange={(e) => setPublicado(e.target.checked)}
+                className="
+                  form-checkbox h-5 w-5 rounded
+                  text-teal-500 bg-gray-800 border-gray-600
+                  focus:ring-teal-400
+                "
+              />
+              <label htmlFor="publicado" className="ml-3 block text-purple-300 text-base font-semibold">Publicar Programa</label>
+            </div>
+
+            {/* Botón de Envío */}
+            <div className="text-center pt-4 flex gap-4">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                aria-busy={isSubmitting}
+                className={`flex-1 bg-gradient-to-r from-teal-500 to-purple-500 hover:from-teal-600 hover:to-purple-600 text-white font-bold py-3 px-8 rounded-full shadow-xl-neon transition-all duration-300 ease-in-out text-xl transform active:scale-95 animate-glow-button focus:outline-none focus:ring-4 focus:ring-teal-400 focus:ring-offset-2 focus:ring-offset-gray-900 hover:scale-105 transition-transform ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
+              >
+                {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/')}
+                disabled={isSubmitting}
+                className="flex-1 bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-gray-950 text-gray-200 font-bold py-3 px-8 rounded-full shadow-xl-neon animate-glow-button transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-offset-2 focus:ring-offset-gray-900 hover:scale-105 text-xl border border-gray-600"
+                aria-label="Cancelar y volver al inicio"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 };

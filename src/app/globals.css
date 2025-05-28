@@ -5,7 +5,7 @@
   --foreground: #171717;
 }
 
-@theme inline {
+:root {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -23,4 +23,51 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.7s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes bg-move {
+  0% { background-position: 0% 0%, 100% 100%, 50% 50%; }
+  100% { background-position: 100% 0%, 0% 100%, 50% 50%; }
+}
+.animate-bg-move {
+  animation: bg-move 30s linear infinite alternate;
+}
+
+.shadow-xl-neon-card {
+  box-shadow: 0 4px 32px 0 rgba(80,255,255,0.10), 0 1.5px 8px 0 rgba(255,80,255,0.10);
+}
+.shadow-2xl-neon-card {
+  box-shadow: 0 8px 48px 0 rgba(80,255,255,0.18), 0 3px 16px 0 rgba(255,80,255,0.18);
+}
+
+/* Badges y microinteracciones */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: 0.25em 0.75em;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  border: 1.5px solid transparent;
+}
+
+/* Responsive paddings para tarjetas */
+@media (max-width: 640px) {
+  .p-6 { padding: 1.25rem !important; }
 }

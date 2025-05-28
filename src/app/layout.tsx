@@ -2,6 +2,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import Header from '../components/Header';
+import Footer from '../components/footer';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,9 +20,13 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={`${inter.className} bg-gray-950 text-white`}>
-        <main className="container mx-auto px-4 py-8 min-h-screen">
-          {children}
-        </main>
+        <div style={{ display: 'grid', minHeight: '100dvh', gridTemplateRows: 'auto 1fr auto' }}>
+          <Header />
+          <main className="container mx-auto px-4 py-8 min-h-screen pt-20">
+            {children}
+          </main>
+          <Footer />
+        </div>
       </body>
     </html>
   );
